@@ -1,0 +1,22 @@
+# Simple publish-subscribe example
+## Using WifiNINA as communication 
+1. Start microros-agent
+
+```ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888```
+
+2. Flash example code
+
+3. Check ros topic
+
+```ros2 topic echo /micro_ros_platformio_node_publisher```
+terminal should display a increasing counter send from the microcontroller.
+
+---
+
+
+## Using Serial communication:
+Start microros-agent
+
+```ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyACM0```
+
+uncomment serial-communication codeline in platformio.ini and main.cpp
