@@ -1,0 +1,3 @@
+open second Serial Monitor:
+``` sudo screen /dev/ttyTHS1 115200 ```
+
