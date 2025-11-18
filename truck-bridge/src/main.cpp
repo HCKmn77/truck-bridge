@@ -12,20 +12,30 @@
 #include <std_msgs/msg/int32.h>
 #include "../include/secrets.h"
 
-// ======== Debug Macros ========
-
-#define DEBUG_PRINT(x)   { DEBUG_SERIAL.print("[DEBUG] "); DEBUG_SERIAL.print(x); }
-#define DEBUG_PRINTLN(x) { DEBUG_SERIAL.print("[DEBUG] "); DEBUG_SERIAL.println(x); }
-
 // ======== Hardware specific config ========
 #if defined(TARGET_ESP32)
   #define LED_PIN   2
   #define DEBUG_SERIAL Serial2
   
+  // RC reciever
+  // Input pins from the RadioMaster receiver
+  #define RC_CH1_PIN 23   // Servo control
+  #define RC_CH2_PIN 22   // Motor control
+  #define RC_CH3_PIN 21 
+  #define RC_CH4_PIN 19
+  #define RC_CH5_PIN 18
+  #define RC_CH6_PIN 5    // Mode switch (<1500 = RC, >1500 = AUTO)
+  #define RC_BATT_PIN 4   // Battery voltage monitoring
+
+  // aktuators
+  #define MOTOR_PIN 12
   #define SERVO_PIN 13
+
+  // sensors
   #define GYRO_X_PIN 34  
   #define GYRO_Y_PIN 35
   #define GYRO_Z_PIN 36
+  #define WHEEL_RPM_PIN 39
 
 #elif defined(TARGET_RP2040)
   #define LED_PIN LED_BUILDIN
@@ -36,6 +46,7 @@
 #define DEBUG_BAUD 115200
 #define GYRO_PUBLISH_INTERVAL 100
 
+Servo servo;
 
 // ======== micro-ROS Globals ========
 rcl_subscription_t led_sub;
@@ -49,25 +60,125 @@ std_msgs__msg__Int32 servo_msg;
 rcl_publisher_t gyro_pub;
 geometry_msgs__msg__Vector3 gyro_msg;
 
-// ======== Servo Object ========
-Servo servo;
+// Add reconnection tracking
+bool ros_connected = false;
+unsigned long last_reconnect_attempt = 0;
+const unsigned long RECONNECT_INTERVAL = 2000;  // Try reconnect every 2 seconds
 
-// ======== Callbacks ========
+volatile uint16_t rc_channels[6] = {0, 0, 0, 0, 0, 0}; // RC channel values in microseconds
+bool use_rc_control = false;  // false = AUTO, true = RC
+unsigned long last_rc_update = 0;
+const unsigned long CONNECTTION_TIMEOUT = 500;  // ms - consider lost after this time
+
+bool rc_signal_lost() {
+  return (millis() - last_rc_update) > CONNECTTION_TIMEOUT;
+}
+
+bool ros_signal_lost() {
+  if (rmw_uros_ping_agent(CONNECTTION_TIMEOUT, 4) != RCL_RET_OK) {
+    return true;}
+  else {
+    return false;
+  }
+}
+
+uint16_t read_pwm_channel(int pin) {
+  return pulseIn(pin, HIGH, 25000);  // timeout 25ms
+}
+
+// ======== RC Functions ========
+void update_rc_channels() {
+  static unsigned long last_read = 0;
+  unsigned long now = millis();
+  
+  // Read RC channels every 20ms (50Hz typical RC rate)
+  if (now - last_read >= 20) {
+    last_read = now;
+    
+    // Read all 6 channels
+    rc_channels[0] = read_pwm_channel(RC_CH1_PIN);
+    rc_channels[1] = read_pwm_channel(RC_CH2_PIN);
+    rc_channels[2] = read_pwm_channel(RC_CH3_PIN);
+    rc_channels[3] = read_pwm_channel(RC_CH4_PIN);
+    rc_channels[4] = read_pwm_channel(RC_CH5_PIN);
+    rc_channels[5] = read_pwm_channel(RC_CH6_PIN);
+    
+    // Channel 6 decides control mode (1000-1500 = RC, 1500-2000 = AUTO)
+    use_rc_control = (rc_channels[5] < 1500);
+    
+    last_rc_update = now;
+    
+    // Debug output every 500ms
+    static unsigned long last_debug = 0;
+    if (now - last_debug >= 500) {
+      last_debug = now;
+      DEBUG_SERIAL.print("Status: RC: ");
+      DEBUG_SERIAL.print(rc_signal_lost() ? "❌" : "✅");
+      DEBUG_SERIAL.print(" ROS: ");
+      DEBUG_SERIAL.print(ros_signal_lost() ? "❌" : "✅");
+
+      DEBUG_SERIAL.print(" | Mode: ");
+      DEBUG_SERIAL.print(use_rc_control ? "RC" : "AUTO");
+      DEBUG_SERIAL.print(" | CH1:");
+      DEBUG_SERIAL.print(rc_channels[0]);
+      DEBUG_SERIAL.print(" CH2:");
+      DEBUG_SERIAL.print(rc_channels[1]);
+      DEBUG_SERIAL.print(" CH3:");
+      DEBUG_SERIAL.print(rc_channels[2]);
+      DEBUG_SERIAL.print(" CH4:");
+      DEBUG_SERIAL.print(rc_channels[3]);
+      DEBUG_SERIAL.print(" CH5:");
+      DEBUG_SERIAL.print(rc_channels[4]);
+      DEBUG_SERIAL.print(" CH6:");
+      DEBUG_SERIAL.println(rc_channels[5]);
+    }
+  }
+}
+
+// Convert PWM value (1000-2000) to servo angle (0-180)
+uint8_t pwm_to_servo_angle(uint16_t pwm) {
+  // Clamp to 1000-2000 range
+  pwm = constrain(pwm, 1000, 2000);
+  // Map to 0-180 degrees
+  return map(pwm, 1000, 2000, 0, 180);
+}
+
+// Convert PWM value to motor speed (-255 to 255)
+int16_t pwm_to_motor_speed(uint16_t pwm) {
+  // Clamp to 1000-2000 range
+  pwm = constrain(pwm, 1000, 2000);
+  // 1500 is neutral (0 speed), 1000-1500 is reverse, 1500-2000 is forward
+  if (pwm < 1500) {
+    return map(pwm, 1000, 1500, -255, 0);
+  } else {
+    return map(pwm, 1500, 2000, 0, 255);
+  }
+}
+
+// ======== ROS Callbacks ========
+
 void led_callback(const void * msgin)
 {
-  DEBUG_PRINTLN("LED callback triggered");
+  DEBUG_SERIAL.println("LED callback triggered");
   const std_msgs__msg__Bool * msg = (const std_msgs__msg__Bool *)msgin;
   digitalWrite(LED_PIN, msg->data ? HIGH : LOW);
-  DEBUG_PRINT("LED set to: "); DEBUG_PRINTLN(msg->data ? "ON" : "OFF");
+  DEBUG_SERIAL.print("LED set to: "); DEBUG_SERIAL.println(msg->data ? "ON" : "OFF");
 }
 
 void servo_callback(const void * msgin)
 {
-  DEBUG_PRINTLN("Servo callback triggered");
+  DEBUG_SERIAL.println("Servo callback triggered");
+
+  // Only process ROS servo commands if RC mode is OFF
+  if (use_rc_control) {
+    DEBUG_SERIAL.println("Servo: RC control active, ignoring ROS command");
+    return;
+  }
+  
   const std_msgs__msg__Int32 * msg = (const std_msgs__msg__Int32 *)msgin;
   int angle = constrain(msg->data, 0, 180);
   servo.write(angle);
-  DEBUG_PRINT("Servo angle: "); DEBUG_PRINTLN(angle);
+  DEBUG_SERIAL.print("Servo angle (ROS): "); DEBUG_SERIAL.println(angle);
 }
 
 void read_and_publish_gyro() {
@@ -88,10 +199,6 @@ void read_and_publish_gyro() {
     
     // Publish
     rcl_ret_t pub_ret = rcl_publish(&gyro_pub, &gyro_msg, NULL);
-    if (pub_ret != RCL_RET_OK) {
-      DEBUG_PRINT("Gyro publish failed: "); 
-      DEBUG_PRINTLN(pub_ret);
-    }
     
     last_publish = now;
   }
@@ -101,27 +208,35 @@ void read_and_publish_gyro() {
 void setup()
 {
   DEBUG_SERIAL.begin(DEBUG_BAUD);
-  DEBUG_PRINTLN("Booting micro-ROS node...");
+  DEBUG_SERIAL.println("Booting micro-ROS node...");
 
   // --- Hardware Setup ---
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
   servo.attach(SERVO_PIN);
 
+  // --- RC Receiver Setup ---
+  pinMode(RC_CH1_PIN, INPUT);
+  pinMode(RC_CH2_PIN, INPUT);
+  pinMode(RC_CH3_PIN, INPUT);
+  pinMode(RC_CH4_PIN, INPUT);
+  pinMode(RC_CH5_PIN, INPUT);
+  pinMode(RC_CH6_PIN, INPUT);
+  
   // --- micro-ROS Transport mode ---
   
   #if defined(USE_SERIAL_TRANSPORT)
-    DEBUG_PRINTLN("Using Serial transport");
-    DEBUG_PRINTLN("Setting up micro-ROS Serial transport...");
+    DEBUG_SERIAL.println("Using Serial transport");
+    DEBUG_SERIAL.println("Setting up micro-ROS Serial transport...");
     Serial.begin(115200);
     set_microros_serial_transports(Serial);
   #elif defined(USE_WIFI_TRANSPORT)
-    DEBUG_PRINTLN("Using WiFi transport");
-    DEBUG_PRINTLN("Setting up micro-ROS WiFi transport...");
+    DEBUG_SERIAL.println("Using WiFi transport");
+    DEBUG_SERIAL.println("Setting up micro-ROS WiFi transport...");
     set_microros_wifi_transports(WIFI_SSID, WIFI_PASS, AGENT_IP, AGENT_PORT);
   #elif defined(USE_ETHERNET_TRANSPORT)
-    DEBUG_PRINTLN("Using Ethernet transport");
-    DEBUG_PRINTLN("Setting up micro-ROS Ethernet transport...");
+    DEBUG_SERIAL.println("Using Ethernet transport");
+    DEBUG_SERIAL.println("Setting up micro-ROS Ethernet transport...");
     set_microros_ethernet_transports(ETHERNET_MAC, AGENT_IP, AGENT_PORT);
   #endif
   
@@ -130,29 +245,29 @@ void setup()
   // --- micro-ROS Init ---
   allocator = rcl_get_default_allocator();
   rcl_ret_t ret = rclc_support_init(&support, 0, NULL, &allocator);
-  if (ret != RCL_RET_OK) { DEBUG_PRINTLN("Support init failed"); return; }
+  if (ret != RCL_RET_OK) { DEBUG_SERIAL.println("Support init failed"); return; }
 
   ret = rclc_node_init_default(&node, "servo_led_node", "", &support);
-  if (ret != RCL_RET_OK) { DEBUG_PRINTLN("Node creation failed"); return; }
+  if (ret != RCL_RET_OK) { DEBUG_SERIAL.println("Node creation failed"); return; }
 
   ret = rclc_subscription_init_default(
       &led_sub, &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool),
       "led_control");
-  if (ret != RCL_RET_OK) { DEBUG_PRINTLN("LED subscriber failed"); return; }
+  if (ret != RCL_RET_OK) { DEBUG_SERIAL.println("LED subscriber failed"); return; }
 
   ret = rclc_subscription_init_default(
       &servo_sub, &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
       "servo_angle");
-  if (ret != RCL_RET_OK) { DEBUG_PRINTLN("Servo subscriber failed"); return; }
+  if (ret != RCL_RET_OK) { DEBUG_SERIAL.println("Servo subscriber failed"); return; }
 
   ret = rclc_executor_init(&executor, &support.context, 2, &allocator);
-  if (ret != RCL_RET_OK) { DEBUG_PRINTLN("Executor init failed"); return; }
+  if (ret != RCL_RET_OK) { DEBUG_SERIAL.println("Executor init failed"); return; }
 
   rclc_executor_add_subscription(&executor, &led_sub, &led_msg, &led_callback, ON_NEW_DATA);
   rclc_executor_add_subscription(&executor, &servo_sub, &servo_msg, &servo_callback, ON_NEW_DATA);
-  DEBUG_PRINTLN("micro-ROS subscribers ready!");
+  DEBUG_SERIAL.println("micro-ROS subscribers ready!");
 
   // Gyro publisher setup
   ret = rclc_publisher_init_default(
@@ -162,28 +277,47 @@ void setup()
     "gyro_data"
   );
   if (ret != RCL_RET_OK) { 
-    DEBUG_PRINTLN("Gyro publisher failed"); 
+    DEBUG_SERIAL.println("Gyro publisher failed"); 
     return; 
   }
   analogReadResolution(10);
-  DEBUG_PRINTLN("Gyro publisher ready!");
-  DEBUG_PRINTLN("micro-ROS node setup complete.");
+  DEBUG_SERIAL.println("Gyro publisher ready!");
+  DEBUG_SERIAL.println("micro-ROS node setup complete.");
 }
 
 // ======== Main Loop ========
 void loop()
 {
-  // // quick check: is agent reachable? avoid spinning when transport down
-  // int ping = rmw_uros_ping_agent(100, 1);
-  // if (ping != RMW_RET_OK) {
-  //   DEBUG_PRINT("Agent ping failed (skip spin). ret=");
-  //   DEBUG_PRINTLN(ping);
+  // Update RC channels
+  update_rc_channels();
+  
 
-  //   delay(1000);
-  //   return;
-  // }
-  read_and_publish_gyro();
+  // Handle RC control if enabled and signal present
+  if (use_rc_control && !rc_signal_lost()) {
+    // RC Channel 2 controls servo
+    uint8_t servo_angle = pwm_to_servo_angle(rc_channels[0]);
+    servo.write(servo_angle);
+    DEBUG_SERIAL.print("(RC) Servo: "); DEBUG_SERIAL.print(servo_angle);
+    
+    // RC Channel 3 controls motor (if you have motor code)
+    int16_t motor_speed = pwm_to_motor_speed(rc_channels[1]);
+    DEBUG_SERIAL.print(" | Motor: "); DEBUG_SERIAL.println(motor_speed);
+    // analogWrite(MOTOR_PIN, abs(motor_speed));  // uncomment when ready
+        
+  } else if (!use_rc_control) {
+    // ROS control mode - process ROS commands
+    read_and_publish_gyro();
+  } else if (rc_signal_lost() && !ros_connected) {
+    DEBUG_SERIAL.println("WARNING: Both RC and ROS signals lost - Safe mode!");
+    servo.write(90);  // Center servo
+    // analogWrite(MOTOR_PIN, 0);  // Stop motor - uncomment when ready
+  }
 
   rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
+    if (ret != RCL_RET_OK) {
+      DEBUG_SERIAL.print("Executor error: ");
+      DEBUG_SERIAL.println(ret);
+    }
+  
   delay(10);
 }
