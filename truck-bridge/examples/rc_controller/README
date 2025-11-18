@@ -1,0 +1,12 @@
+# RC Controller
+Small example to test the communication between RC-Remote and Microcontroller.
+Connect the reciever pins to the mcu as defined in the .cpp file.
+
+Open serial monitor to see the output of channel 1-6:
+```
+ sudo screen /dev/ttyTHS1 115200
+```
+Example Output:
+```
+CH1:1500µs | CH2:1493µs | CH3:1499µs | CH4:1500µs | CH5:999µs | CH6:999µs | BATT:0
+```
