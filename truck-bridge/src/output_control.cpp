@@ -6,6 +6,8 @@
 #include "output_control.h"
 #include "ros_interface.h"
 
+
+
 extern Servo servo;
 
 // LED state tracking
@@ -29,7 +31,6 @@ static int16_t pwm_to_motor_speed(uint16_t pwm) {
 }
 
 void output_control_init_leds(void) {
-  LOG_INFO("OUT-CTRL", "Initializing status LEDs...");
   
   digitalWrite(LED_MODE_PIN, LOW);
   digitalWrite(LED_RC_PIN, LOW);
@@ -38,8 +39,6 @@ void output_control_init_leds(void) {
   led_mode_state = false;
   led_rc_state = false;
   led_ros_state = false;
-
-  LOG_INFO("OUT-CTRL", "LED initialization complete (LEDC for MODE configured)");
 }
 
 void output_control_update_leds(bool use_rc, bool rc_connected, bool ros_connected) {
@@ -88,7 +87,11 @@ void output_control_task(void *pvParameters) {
       int16_t servo_angle = control_state.desired_servo_angle;
       int16_t motor_speed = control_state.desired_motor_speed;
       bool led_state = control_state.led_state;
-      bool signal_lost = shared_rc_signal_lost();
+      
+      // TODO: optimize signal loss check of rc and ros signal. 
+      // BUG from AI: shared_rc_signal_lost() want to take the mutex again -> blocking mutex
+      //   -> poor performance (waits til timout expires)
+      bool signal_lost = 0; // shared_rc_signal_lost(); 
       xSemaphoreGive(state_mutex);
 
       // Determine connection states for LED indication
