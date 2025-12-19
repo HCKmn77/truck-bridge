@@ -17,7 +17,6 @@ void rc_input_task(void *pvParameters) {
   
   while (1) {
     unsigned long now = millis();
-    LOG_INFO("RC-TASK", "Reading RC channels");
     // Read RC channels at RC_UPDATE_INTERVAL
     uint16_t temp_channels[6];
     temp_channels[0] = read_pwm_channel(RC_CH1_PIN);
@@ -30,13 +29,9 @@ void rc_input_task(void *pvParameters) {
     LOG_DEBUG("RC-TASK", "RC Channels Read: CH1:%u CH2:%u CH3:%u CH4:%u CH5:%u CH6:%u",
       temp_channels[0], temp_channels[1], temp_channels[2],
       temp_channels[3], temp_channels[4], temp_channels[5]);
-    
-    LOG_DEBUG("RC-TASK", "Check if Mutex is correclty initialized: %s", state_mutex != NULL ? "YES" : "NO");
-    LOG_DEBUG("RC-TASK", "Mutex value: %p", state_mutex);
 
     // Update shared state
     if (xSemaphoreTake(state_mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
-      LOG_INFO("RC-TASK", "Updating shared state with RC channels");
       memcpy(control_state.rc_channels, temp_channels, sizeof(temp_channels));
       control_state.use_rc_control = (temp_channels[5] < 1500);
       control_state.last_rc_update = now;

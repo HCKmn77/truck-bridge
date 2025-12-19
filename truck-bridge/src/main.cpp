@@ -12,8 +12,7 @@
 #include "ros_interface.h"
 #include "sensor.h"
 
-/**
-********************************************************************************************************************
+/********************************************************************************************************************
 *   Studieprojekt: Truck Bridge | Hochschule Esslingen (2025)
 *   Autor: Jeremia Haackmann (TIB)
 * ------------------------------------------------------------------------------------------------------------------
@@ -56,11 +55,8 @@
 *     This file initializes hardware, shared state, micro-ROS and RC communication 
 *     and distributes the tasks across the ESP32's two cores.
 *   
-********************************************************************************************************************
-*/
+********************************************************************************************************************/
 
-
-// servo instance used by output_control
 Servo servo;
 
 // ======== Setup ========
@@ -104,25 +100,39 @@ void setup() {
   
   // --- Setup & Initialize micro-ROS (subscriptions, publishers, executor) ---
 
-  //ros_setup_transport();
-  //ros_setup_init();
+  ros_setup_transport();
+  ros_setup_init();
 
 
-  // ======= Create FreeRTOS Tasks =======    // TODO: Change task distribution: 
-  // Task priorities: higher number -> higher priority
-  // Core 0: ROS + Sensors + Logger | Core 1: RC Input + Outputs 
-  // Notation: xTaskCreatePinnedToCore(task function, "name", stack size, parameters, priority, task handle, core id);
 
-  xTaskCreatePinnedToCore(rc_input_task, "RC_Input", 3072, NULL, 3, NULL, 1);
-  //xTaskCreatePinnedToCore(ros_comm_task, "ROS_Comm", 4096, NULL, 1, NULL, 0);
-  //xTaskCreatePinnedToCore(sensor_task, "Sensors", 3072, NULL, 1, NULL, 0);
-  xTaskCreatePinnedToCore(output_control_task, "Outputs", 3072, NULL, 2, NULL, 0);
+/**
+* ======= Creation of FreeRTOS Tasks ======================================================================================================= 
+*    Task priorities: higher number -> higher priority
+*    Notation: xTaskCreatePinnedToCore(task function, "name", stack size, parameters, priority, task handle, core id);
+* ----------------------------------------------------------------------------------------------------------------------------------------
+*    Core 0:
+*        - Logger (started at beginning)
+*        - ROS Communication
+*        - Sensors
+*    Core 1:
+*        - RC Input
+*        - Outputs Control
+*==========================================================================================================================================
 
-  LOG_INFO("MAIN-SETUP", "All tasks created!");
-  LOG_INFO("MAIN-SETUP", "=== Setup Complete - Running Multi-Core ===");
+*/
+
+xTaskCreatePinnedToCore(rc_input_task, "RC_Input", 3072, NULL, 3, NULL, 1);
+xTaskCreatePinnedToCore(ros_comm_task, "ROS_Comm", 4096, NULL, 1, NULL, 0);
+xTaskCreatePinnedToCore(sensor_task, "Sensors", 3072, NULL, 1, NULL, 0);
+xTaskCreatePinnedToCore(output_control_task, "Outputs", 3072, NULL, 2, NULL, 1);
+
+LOG_INFO("MAIN-SETUP", "All tasks created!");
+LOG_INFO("MAIN-SETUP", "=== Setup Complete - Running Multi-Core ===");
 }
 
 void loop() {
-  // All work is outsourced to FreeRTOS tasks
-
+// All work is outsourced to FreeRTOS tasks
+  vTaskDelay(pdMS_TO_TICKS(1000));
 }
+
+

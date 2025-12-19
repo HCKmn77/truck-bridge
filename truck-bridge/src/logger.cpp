@@ -4,6 +4,20 @@
 #include <stdarg.h>
 #include <string.h>
 
+/*
+**********************************************************************************************************************
+*    Logger Module
+*    Queues the log messages from different tasks and outputs them via the DEBUG_SERIAL port.
+*    Log-format: (timestamp)[Level][TaskName] Message   
+* --------------------------------------------------------------------------------------------------------------------
+*      Log level: (can be set in as build-flag in platformio.ini file)
+*        DEBUG: Detailed information, typically of interest only when diagnosing problems.
+*        INFO:  General information about program execution.
+*        WARN:  Something unexpected happened, but the program continues.
+*        ERROR: A serious problem occurred, and the program might not continue.
+*
+***********************************************************************************************************************/
+
 // Log message structure
 typedef struct {
   LogLevel level;
