@@ -1,12 +1,11 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include "shared_state.h"
+#include "rc_input.h"
 #include "config.h"
 #include "logger.h"
 #include "output_control.h"
 #include "ros_interface.h"
-
-
 
 extern Servo servo;
 
@@ -30,7 +29,7 @@ static int16_t pwm_to_motor_speed(uint16_t pwm) {
   }
 }
 
-void output_control_init_leds(void) {
+void init_leds(void) {
   
   digitalWrite(LED_MODE_PIN, LOW);
   digitalWrite(LED_RC_PIN, LOW);
@@ -41,7 +40,7 @@ void output_control_init_leds(void) {
   led_ros_state = false;
 }
 
-void output_control_update_leds(bool use_rc, bool rc_connected, bool ros_connected) {
+void update_leds(bool use_rc, bool rc_connected, bool ros_connected) {
 
   if (!use_rc) {
     if (!led_mode_state) {
@@ -57,14 +56,14 @@ void output_control_update_leds(bool use_rc, bool rc_connected, bool ros_connect
     }
   }
   
-  // Update RC Status LED: ON if RC connected and signal is valid
+  // Update RC Status LED
   if (led_rc_state != rc_connected) {
     led_rc_state = rc_connected;
     digitalWrite(LED_RC_PIN, rc_connected ? HIGH : LOW);
     LOG_DEBUG("OUT-CTRL", "RC Status LED: %s", rc_connected ? "ON (Connected)" : "OFF (Lost)");
   }
   
-  // Update ROS Status LED: ON if ROS connected
+  // Update ROS Status LED
   if (led_ros_state != ros_connected) {
     led_ros_state = ros_connected;
     digitalWrite(LED_ROS_PIN, ros_connected ? HIGH : LOW);
@@ -76,11 +75,13 @@ void output_control_task(void *pvParameters) {
   LOG_INFO("OUT-TASK", "Starting OUTPUT CONTROL TASK...");
   
   // Initialize LEDs on task start
-  output_control_init_leds();
+  init_leds();
   
   while (1) {
     unsigned long now = millis();
-    // Read shared state
+
+    // Read shared state --------------------------------------------------
+    
     if (xSemaphoreTake(state_mutex, pdMS_TO_TICKS(400)) == pdTRUE) {
       bool use_rc = control_state.use_rc_control;
       uint16_t *channels = control_state.rc_channels;
@@ -89,21 +90,20 @@ void output_control_task(void *pvParameters) {
       bool led_state = control_state.led_state;
       
       // TODO: optimize signal loss check of rc and ros signal. 
-      // BUG from AI: shared_rc_signal_lost() want to take the mutex again -> blocking mutex
+      // BUG from AI: rc_signal_lost() want to take the mutex again -> blocking mutex
       //   -> poor performance (waits til timout expires)
-      bool signal_lost = 0; // shared_rc_signal_lost(); 
+      bool signal_lost = rc_signal_lost();
       xSemaphoreGive(state_mutex);
-
-      // Determine connection states for LED indication
-      bool rc_connected = !signal_lost;
-      bool ros_connected = ros_is_connected();
       
       // Update status LEDs based on current state
-      output_control_update_leds(use_rc, rc_connected, ros_connected);
+      update_leds(use_rc, !signal_lost, ros_is_connected());
+
+
+      // MAIN CONTROL LOGIC: ----------------------------------------------
 
       if (use_rc && !signal_lost) {
-        // RC mode - RC commands take priority when active
-        // Set values from RC controller 
+        // RC MODE - RC commands take priority when active
+        // read values from remote control  
         servo_angle = pwm_to_servo_angle(channels[0]);
         motor_speed = pwm_to_motor_speed(channels[1]);
         
@@ -116,11 +116,12 @@ void output_control_task(void *pvParameters) {
         LOG_WARN("OUT-TASK", "Both RC and ROS lost - Safe mode!");
       }
       else {
-        // Using the latest values from control_state (ROS commands)
+        // AUTO MODE - Using the latest values from control_state (ROS commands)
         LOG_DEBUG("OUT-TASK", "AUTO Mode - Servo: %d | Motor: %d", servo_angle, motor_speed);
       }
 
-      // Apply commands to outputs (servo, motor, leds)
+      // Write outputs -------------------------------------------------
+
       servo.write(servo_angle);
       digitalWrite(LED_BUILDIN, led_state ? HIGH : LOW);
       // analogWrite(MOTOR_PIN, abs(motor_speed));  // uncomment when ready

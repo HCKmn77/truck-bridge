@@ -92,7 +92,7 @@ void setup() {
   pinMode(RC_CH5_PIN, INPUT);
   pinMode(RC_CH6_PIN, INPUT);
   
-  // --- Create & init shared state (mutex inside) ---
+  // --- Create & init shared state ---
   if (!shared_state_init()) {
     LOG_ERROR("MAIN-SETUP", "Failed to create shared state mutex!");
     return;

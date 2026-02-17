@@ -120,6 +120,6 @@ void logger_task(void *pvParameters) {
       }
     }
     
-    vTaskDelay(pdMS_TO_TICKS(1));
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }

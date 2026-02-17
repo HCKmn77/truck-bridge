@@ -9,7 +9,6 @@ extern "C" {
 
 // Log levels
 typedef enum {
-  LOG_OFF = -1,
   LOG_LEVEL_DEBUG = 0,
   LOG_LEVEL_INFO = 1,
   LOG_LEVEL_WARN = 2,
@@ -19,7 +18,7 @@ typedef enum {
 // Initialize logger queue and set minimum log level
 void logger_init(LogLevel min_level);
 
-// Queue a log message (task-safe, non-blocking with timeout)
+// Queue a log message
 // Returns pdTRUE if queued successfully, pdFALSE if queue full
 BaseType_t logger_queue_message(
   LogLevel level,
@@ -31,7 +30,7 @@ BaseType_t logger_queue_message(
 // Logger task entry point (call via xTaskCreatePinnedToCore)
 void logger_task(void *pvParameters);
 
-// Shorthand macros for different log levels
+// Macros for different log levels
 #define LOG_DEBUG(task, fmt, ...) \
   logger_queue_message(LOG_LEVEL_DEBUG, task, fmt, ##__VA_ARGS__)
 

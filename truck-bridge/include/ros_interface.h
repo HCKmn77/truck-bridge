@@ -18,9 +18,12 @@ void ros_publish_gyro(float x, float y, float z);
 
 // Spin the executor once (wrapper)
 void ros_spin_some(uint32_t ms);
-
+    
 // Query connection state
 bool ros_is_connected(void);
+
+// Set connection state
+void set_ros_connected(bool connected);
 
 // ROS comm task entry (call via xTaskCreatePinnedToCore)
 void ros_comm_task(void *pvParameters);

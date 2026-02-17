@@ -10,6 +10,18 @@ static uint16_t read_pwm_channel(int pin) {
   return pulseIn(pin, HIGH, 25000);  // timeout 25ms
 }
 
+bool rc_signal_lost(void) {
+  // TODO: Find a reliable way to detect signal loss. Current approach of time diff between last update does not work because 'control_state.last_rc_update' updates even when signal is lost
+  bool lost = false;
+  unsigned long now = millis();
+  LOG_DEBUG("RC-TASK", "Checking RC signal loss. Last update: %lu ms ago", now - control_state.last_rc_update);
+  lost = (now - control_state.last_rc_update) > 500;
+  if(lost){
+    LOG_WARN("RC-TASK", "RC signal LOST!");
+  }
+  return lost;
+}
+
 void rc_input_task(void *pvParameters) {
   LOG_INFO("RC-TASK", "Starting RC-TASK...");
   
@@ -30,10 +42,11 @@ void rc_input_task(void *pvParameters) {
       temp_channels[0], temp_channels[1], temp_channels[2],
       temp_channels[3], temp_channels[4], temp_channels[5]);
 
-    // Update shared state
+    // Update RC channels shared state
     if (xSemaphoreTake(state_mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
       memcpy(control_state.rc_channels, temp_channels, sizeof(temp_channels));
       control_state.use_rc_control = (temp_channels[5] < 1500);
+      // TODO: The 'last_rc_update' is currently updated even when signal is lost, which makes it unreliable for signal loss detection. Need to find a better approach to detect signal loss.
       control_state.last_rc_update = now;
       xSemaphoreGive(state_mutex);    
     }
@@ -57,7 +70,7 @@ void rc_input_task(void *pvParameters) {
       last_debug = now;
       if (xSemaphoreTake(state_mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         LOG_DEBUG("RC-TASK", "Status: RC:%s | Mode:%s | CH1:%u CH2:%u CH6:%u",
-          shared_rc_signal_lost() ? "LOST" : "OK",
+          rc_signal_lost() ? "LOST" : "OK",
           control_state.use_rc_control ? "RC" : "AUTO",
           control_state.rc_channels[0],
           control_state.rc_channels[1],

@@ -26,9 +26,6 @@ extern SemaphoreHandle_t state_mutex;
 // Initialize shared state and create mutex. Returns true on success.
 bool shared_state_init(void);
 
-// Helper to check if RC signal is lost
-bool shared_rc_signal_lost(void);
-
 #ifdef __cplusplus
 }
 #endif

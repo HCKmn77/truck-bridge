@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+bool rc_signal_lost(void);
+
 void rc_input_task(void *pvParameters);
 
 #ifdef __cplusplus

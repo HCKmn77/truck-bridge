@@ -1,16 +1,19 @@
-/**
+/*
+ * Shared state management for multicore tasks 
  * 
- * 
- * 
+ * This module provides functions to safely access and modify shared state
+ * variables across multiple tasks running on different cores. 
+ * It uses a mutex to ensure that only one task can access the shared state at a time, preventing race conditions and ensuring data integrity.
  */
 
 #include <string.h>
-
 #include "config.h"
 #include "logger.h"
 #include "shared_state.h"
 
+SemaphoreHandle_t state_mutex = NULL;
 ControlState control_state = {
+  // Defining the default states of the system 
   .rc_channels = {0,0,0,0,0,0},
   .use_rc_control = false,
   .desired_servo_angle = 90,
@@ -20,42 +23,8 @@ ControlState control_state = {
   .last_ros_command = 0
 };
 
-SemaphoreHandle_t state_mutex = NULL;
 
 bool shared_state_init(void) {
   state_mutex = xSemaphoreCreateMutex();
   return (state_mutex != NULL);
-}
-
-bool shared_rc_signal_lost(void) {
-  if (state_mutex == NULL) {
-    // pessimistic: assume lost
-    LOG_WARN("SHARED-STATE", "state_mutex==NULL, assume RC signal LOST!");
-    return true;
-  }
-  bool lost = false;
-  if (xSemaphoreTake(state_mutex, pdMS_TO_TICKS(400)) == pdTRUE) {
-    LOG_DEBUG("SHARED-STATE", "Checking RC signal loss. Last update: %lu ms ago",
-      millis() - control_state.last_rc_update);
-    unsigned long now = millis();
-    lost = (now - control_state.last_rc_update) > 500;
-    if(lost){
-      LOG_WARN("SHARED-STATE", "RC signal LOST!");
-    }
-    xSemaphoreGive(state_mutex);
-  }
-  else
-    {
-        // Timeout reached - failed to take mutex
-        TaskHandle_t ownerHandle = xSemaphoreGetMutexHolder(state_mutex);
-        if (ownerHandle != NULL) {
-            // Get the name of the task holding the lock
-            const char* ownerName = pcTaskGetName(ownerHandle);
-            LOG_ERROR("SHARED-TASK", "Timeout of 400ms reached. Mutex held by task: %s", ownerName);
-        } 
-        else {
-            LOG_ERROR("SHARED-TASK", "Mutex not held, but something went wrong taking it.");
-        }
-    }
-  return lost;
 }

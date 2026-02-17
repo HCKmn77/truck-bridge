@@ -25,7 +25,9 @@ static std_msgs__msg__Int32 servo_msg;
 static rcl_publisher_t gyro_pub;
 static geometry_msgs__msg__Vector3 gyro_msg;
 
-static volatile bool gyro_ros_connected = false;
+static volatile bool ros_connected = false;
+
+// ROS Callbacks and helper functions -----------------------------------
 
 void led_callback(const void * msgin)
 {
@@ -56,8 +58,31 @@ void servo_callback(const void * msgin)
   }
 }
 
+// Publish gyro data to ROS topic
+void ros_publish_gyro(float x, float y, float z) {
+  gyro_msg.x = x;
+  gyro_msg.y = y;
+  gyro_msg.z = z;
+  rcl_publish(&gyro_pub, &gyro_msg, NULL);
+}
+
+void ros_spin_some(uint32_t ms) {
+  rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(ms));
+  if (ret != RCL_RET_OK) {LOG_ERROR("ROS-INIT-TASK", "Executor spin error: %d", ret);}
+}
+
+void set_ros_connected(bool connected) {
+  ros_connected = connected;
+}
+
+bool ros_is_connected(void) {
+    return ros_connected;
+}
+
+// ROS Setup functions ---------------------------------------------
+
 void ros_setup_transport(void) {
-  //  Setup transport based on build-flag
+  // Setup transport based on build-flag defined in platformio.ini
   #if defined(USE_SERIAL_TRANSPORT)
     LOG_INFO("ROS-INIT-TASK", "Using Serial transport");
     Serial.begin(115200);
@@ -71,6 +96,7 @@ void ros_setup_transport(void) {
     LOG_INFO("ROS-INIT-TASK", "Using Ethernet transport");
     set_microros_ethernet_transports(ETHERNET_MAC, AGENT_IP, AGENT_PORT);
   #endif
+  // wait to establish connection
   delay(2000);
 }
 
@@ -80,28 +106,41 @@ void ros_setup_init(void) {
   rcl_ret_t ret = rclc_support_init(&support, 0, NULL, &allocator);
   if (ret != RCL_RET_OK) { LOG_ERROR("ROS-INIT-TASK", "Support init failed"); return;}
 
-  ret = rclc_node_init_default(&node, "servo_led_node", "", &support);
+
+  // Node init ----------------------------------------------------
+
+  ret = rclc_node_init_default(&node, "servo_node", "", &support);
   if (ret != RCL_RET_OK) { LOG_ERROR("ROS-INIT-TASK", "Node creation failed"); return; }
 
+
+  // Subsciber init -----------------------------------------------
+
+  // LED subscriber setup
   ret = rclc_subscription_init_default(
       &led_sub, &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool),
       "led_control");
   if (ret != RCL_RET_OK) { LOG_ERROR("ROS-INIT-TASK", "LED subscriber failed"); return; }
 
+  // Servo subscriber setup
   ret = rclc_subscription_init_default(
       &servo_sub, &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
       "servo_angle");
   if (ret != RCL_RET_OK) { LOG_ERROR("ROS-INIT-TASK", "Servo subscriber failed"); return; }
 
+  
+  // Executor init ----------------------------------------------
+
+  // Executor coordinates callbacks and handles incoming messages
   ret = rclc_executor_init(&executor, &support.context, 2, &allocator);
   if (ret != RCL_RET_OK) { LOG_ERROR("ROS-INIT-TASK", "Executor init failed"); return; }
-
   rclc_executor_add_subscription(&executor, &led_sub, &led_msg, &led_callback, ON_NEW_DATA);
   rclc_executor_add_subscription(&executor, &servo_sub, &servo_msg, &servo_callback, ON_NEW_DATA);
   LOG_INFO("ROS-INIT-TASK", "micro-ROS subscribers ready!");
 
+  // Publisher init ----------------------------------------------
+  
   // Gyro publisher setup
   ret = rclc_publisher_init_default(
     &gyro_pub,
@@ -114,25 +153,4 @@ void ros_setup_init(void) {
     return; 
   }
   LOG_INFO("ROS-INIT-TASK", "Gyro publisher ready!");
-  gyro_ros_connected = true;
-}
-
-void ros_publish_gyro(float x, float y, float z) {
-  gyro_msg.x = x;
-  gyro_msg.y = y;
-  gyro_msg.z = z;
-  rcl_publish(&gyro_pub, &gyro_msg, NULL);
-}
-
-void ros_spin_some(uint32_t ms) {
-  if (!gyro_ros_connected) return;
-  rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(ms));
-  if (ret != RCL_RET_OK) {
-    LOG_ERROR("ROS-INIT-TASK", "Executor spin error: %d", ret);
-    gyro_ros_connected = false;
-  }
-}
-
-bool ros_is_connected(void) {
-  return gyro_ros_connected;
 }

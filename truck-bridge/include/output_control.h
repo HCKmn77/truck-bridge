@@ -17,12 +17,12 @@ void output_control_task(void *pvParameters);
 /**
  * Initialize LED pins and set initial states
  */
-void output_control_init_leds(void);
+void init_leds(void);
 
 /**
  * Update status LEDs based on control mode and connection states
  */
-void output_control_update_leds(bool use_rc, bool rc_connected, bool ros_connected);
+void update_leds(bool use_rc, bool rc_connected, bool ros_connected);
 
 #ifdef __cplusplus
 }
