@@ -12,8 +12,9 @@ void ros_comm_task(void *pvParameters) {
     // Checking connection to mirco-ROS agent
     if (rmw_uros_ping_agent(100, 1)== RMW_RET_OK) {
       
-      // Spin executor to process ROS messages
       set_ros_connected(true);
+      
+      // Spin executor to process ROS messages
       ros_spin_some(100);
 
     } else {

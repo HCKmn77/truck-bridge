@@ -16,6 +16,12 @@ void ros_setup_init(void);
 // Publish gyro vector to ROS
 void ros_publish_gyro(float x, float y, float z);
 
+// Publish accelerometer vector to ROS
+void ros_publish_accel(float x, float y, float z);
+
+// Publish servo angle feedback to ROS
+void ros_publish_servo_feedback(int16_t angle);
+
 // Spin the executor once (wrapper)
 void ros_spin_some(uint32_t ms);
     

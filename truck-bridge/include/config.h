@@ -7,9 +7,6 @@
  */
 
 
-#include <Arduino.h>
-
-
 // ======== Hardware specific config ========
 #if defined(TARGET_ESP32)
 
@@ -20,23 +17,25 @@
   // RC receiver
   #define RC_CH1_PIN 23   // Servo control
   #define RC_CH2_PIN 22   // Motor control
-  #define RC_CH3_PIN 21 
-  #define RC_CH4_PIN 19
-  #define RC_CH5_PIN 18
+  #define RC_CH3_PIN 0    // Not connected
+  #define RC_CH4_PIN 0    // Not connected
+  #define RC_CH5_PIN 0    // Not connected
   #define RC_CH6_PIN 5    // Mode switch (<1500 = RC, >1500 = AUTO)
-  #define RC_BATT_PIN 4   // Battery voltage monitoring
+  #define RC_BATT_PIN 0   // Not connected
 
   // actuators
   #define MOTOR_PIN 12
-  #define SERVO_PIN 13
+  #define SERVO_PIN 15
   
   // Status LEDs
   #define LED_BUILDIN 2     // Built-in LED on ESP32 board
-  #define LED_MODE_PIN 12   // Indicates RC/ROS mode
-  #define LED_RC_PIN 14     // Indicates RC signal status
-  #define LED_ROS_PIN 27    // Indicates ROS connection status
+  #define LED_MODE_PIN 18   // Indicates RC/ROS mode
+  #define LED_RC_PIN 19     // Indicates RC signal status
+  #define LED_ROS_PIN 21    // Indicates ROS connection status
 
   // sensors
+  #define BMI270_SDA_PIN 2
+  #define BMI270_SCL_PIN 4
   #define GYRO_X_PIN 34  
   #define GYRO_Y_PIN 35
   #define GYRO_Z_PIN 36
@@ -46,6 +45,7 @@
 // Timing intervals & constants
 #define DEBUG_BAUD 115200
 #define GYRO_PUBLISH_INTERVAL 100
+#define SERVO_FEEDBACK_PUBLISH_INTERVAL 100
 #define RC_UPDATE_INTERVAL 20    // 50Hz
 #define OUTPUT_UPDATE_INTERVAL 20  // 50Hz
 

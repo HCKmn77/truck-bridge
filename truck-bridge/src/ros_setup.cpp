@@ -24,6 +24,10 @@ static std_msgs__msg__Bool led_msg;
 static std_msgs__msg__Int32 servo_msg;
 static rcl_publisher_t gyro_pub;
 static geometry_msgs__msg__Vector3 gyro_msg;
+static rcl_publisher_t accel_pub;
+static geometry_msgs__msg__Vector3 accel_msg;
+static rcl_publisher_t servo_feedback_pub;
+static std_msgs__msg__Int32 servo_feedback_msg;
 
 static volatile bool ros_connected = false;
 
@@ -64,6 +68,20 @@ void ros_publish_gyro(float x, float y, float z) {
   gyro_msg.y = y;
   gyro_msg.z = z;
   rcl_publish(&gyro_pub, &gyro_msg, NULL);
+}
+
+// Publish accelerometer data to ROS topic
+void ros_publish_accel(float x, float y, float z) {
+  accel_msg.x = x;
+  accel_msg.y = y;
+  accel_msg.z = z;
+  rcl_publish(&accel_pub, &accel_msg, NULL);
+}
+
+// Publish servo angle feedback to ROS topic
+void ros_publish_servo_feedback(int16_t angle) {
+  servo_feedback_msg.data = angle;
+  rcl_publish(&servo_feedback_pub, &servo_feedback_msg, NULL);
 }
 
 void ros_spin_some(uint32_t ms) {
@@ -126,7 +144,7 @@ void ros_setup_init(void) {
   ret = rclc_subscription_init_default(
       &servo_sub, &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-      "servo_angle");
+      "servo_angle/cmd");
   if (ret != RCL_RET_OK) { LOG_ERROR("ROS-INIT-TASK", "Servo subscriber failed"); return; }
 
   
@@ -146,11 +164,38 @@ void ros_setup_init(void) {
     &gyro_pub,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
-    "gyro_data"
+    "imu/gyro"
   );
   if (ret != RCL_RET_OK) { 
     LOG_ERROR("ROS-INIT-TASK", "Gyro publisher failed");
     return; 
   }
   LOG_INFO("ROS-INIT-TASK", "Gyro publisher ready!");
+  
+  // Accelerometer publisher setup
+  ret = rclc_publisher_init_default(
+    &accel_pub,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
+    "imu/accel"
+  );
+  if (ret != RCL_RET_OK) { 
+    LOG_ERROR("ROS-INIT-TASK", "Accel publisher failed");
+    return; 
+  }
+  LOG_INFO("ROS-INIT-TASK", "Accel publisher ready!");
+
+
+  // Servo state publisher setup
+  ret = rclc_publisher_init_default(
+    &servo_feedback_pub,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
+    "servo_angle/state"
+  );
+  if (ret != RCL_RET_OK) { 
+    LOG_ERROR("ROS-INIT-TASK", "Servo state publisher failed");
+    return; 
+  }
+  LOG_INFO("ROS-INIT-TASK", "Servo state publisher ready!");
 }

@@ -14,10 +14,15 @@ static bool led_mode_state = false;
 static bool led_rc_state = false;
 static bool led_ros_state = false;
 
+unsigned long last_servo_feedback_published = 0;
+
+
 // Conversion helpers
 static uint8_t pwm_to_servo_angle(uint16_t pwm) {
   pwm = constrain(pwm, 1000, 2000);
-  return map(pwm, 1000, 2000, 0, 180);
+  // return map(pwm, 1000, 2000, 10, 170); // Map to 10-170° to avoid hitting servo limits
+  return map(pwm, 1000, 2000, 170, 10); // Map to 10-170° to avoid hitting servo limits
+  
 }
 
 static int16_t pwm_to_motor_speed(uint16_t pwm) {
@@ -90,8 +95,6 @@ void output_control_task(void *pvParameters) {
       bool led_state = control_state.led_state;
       
       // TODO: optimize signal loss check of rc and ros signal. 
-      // BUG from AI: rc_signal_lost() want to take the mutex again -> blocking mutex
-      //   -> poor performance (waits til timout expires)
       bool signal_lost = rc_signal_lost();
       xSemaphoreGive(state_mutex);
       
@@ -109,8 +112,8 @@ void output_control_task(void *pvParameters) {
         
         LOG_DEBUG("OUT-TASK", "RC Mode - Servo: %d | Motor: %d", servo_angle, motor_speed);
       } 
-      // Handle loss of both signals
       else if (signal_lost && !ros_is_connected()) {
+        // SAFE STATE - Handle loss of both signals
         servo_angle = 90;  // Center servo
         motor_speed = 0;   // Stop motor
         LOG_WARN("OUT-TASK", "Both RC and ROS lost - Safe mode!");
@@ -125,6 +128,15 @@ void output_control_task(void *pvParameters) {
       servo.write(servo_angle);
       digitalWrite(LED_BUILDIN, led_state ? HIGH : LOW);
       // analogWrite(MOTOR_PIN, abs(motor_speed));  // uncomment when ready
+      
+      // TODO: Optimize servo feedback publishing performance. Feedback is currently slowing down the system significantly
+      // Umcomment to publish servo angle feedback to ROS topic /servo_angle/state
+
+      // Publish servo angle feedback to ROS
+      // if (ros_is_connected() && (now - last_servo_feedback_published >= SERVO_FEEDBACK_PUBLISH_INTERVAL)) {
+      //   ros_publish_servo_feedback(servo_angle);
+      //   last_servo_feedback_published = now;
+      // }
     }
     else{
       LOG_ERROR("OUT-TASK", "ERROR: Failed to acquire state_mutex within 400ms!");
