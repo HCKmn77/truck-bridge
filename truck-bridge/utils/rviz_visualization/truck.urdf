@@ -1,0 +1,179 @@
+<?xml version="1.0"?>
+<robot name="truck">
+  
+  <!-- Base link (center of truck) -->
+  <link name="base_link">
+    <!-- Chassis / deck -->
+    <visual>
+      <origin xyz="-0.05 0 0.08" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.62 0.26 0.10"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.2 0.4 0.8 1.0"/>
+      </material>
+    </visual>
+
+    <!-- Cab (front) - single box -->
+    <visual>
+      <origin xyz="0.20 0 0.18" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.22 0.26 0.26"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.2 0.4 0.8 1.0"/>
+      </material>
+    </visual>
+
+    <!-- Simple collision for physics (single box) -->
+    <collision>
+      <origin xyz="-0.02 0 0.11" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.62 0.26 0.18"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Front axle link (steerable) -->
+  <link name="front_axle">
+    <visual>
+      <geometry>
+        <cylinder radius="0.005" length="0.25"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_to_front_axle" type="revolute">
+    <parent link="base_link"/>
+    <child link="front_axle"/>
+    <origin xyz="0.25 0 -0.03" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.524" upper="0.524" effort="10" velocity="1"/>
+  </joint>
+
+  <!-- Front Left Wheel -->
+  <link name="front_left_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="front_axle_to_left_wheel" type="continuous">
+    <parent link="front_axle"/>
+    <child link="front_left_wheel"/>
+    <origin xyz="0 0.105 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Front Right Wheel -->
+  <link name="front_right_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="front_axle_to_right_wheel" type="continuous">
+    <parent link="front_axle"/>
+    <child link="front_right_wheel"/>
+    <origin xyz="0 -0.105 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Rear Left Wheel -->
+  <link name="rear_left_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_to_rear_left_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_left_wheel"/>
+    <origin xyz="-0.25 0.105 -0.03" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Rear Right Wheel -->
+  <link name="rear_right_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.06" length="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_to_rear_right_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_right_wheel"/>
+    <origin xyz="-0.25 -0.105 -0.03" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- IMU link -->
+  <link name="imu_link">
+    <visual>
+      <geometry>
+        <box size="0.02 0.02 0.01"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_to_imu" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0.21" rpy="0 0 0"/>
+  </joint>
+
+</robot>

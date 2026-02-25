@@ -13,11 +13,8 @@ void ros_setup_transport(void);
 // Initialize micro-ROS node, subscriptions, publishers and executor.
 void ros_setup_init(void);
 
-// Publish gyro vector to ROS
-void ros_publish_gyro(float x, float y, float z);
-
-// Publish accelerometer vector to ROS
-void ros_publish_accel(float x, float y, float z);
+// Publish IMU data (gyro + accel) to ROS
+void ros_publish_imu(float gyro_x, float gyro_y, float gyro_z, float accel_x, float accel_y, float accel_z);
 
 // Publish servo angle feedback to ROS
 void ros_publish_servo_feedback(int16_t angle);

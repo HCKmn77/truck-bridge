@@ -75,14 +75,23 @@ void sensor_task(void *pvParameters) {
 
       read_gyro(gyro_x, gyro_y, gyro_z);
       read_accel(accel_x, accel_y, accel_z);
+
+      // Convert units to ROS standard
+      // Gyro: deg/s -> rad/s, Accel: g -> m/s^2
+      const float kGToMps2 = 9.80665f;
+      gyro_x *= DEG_TO_RAD;
+      gyro_y *= DEG_TO_RAD;
+      gyro_z *= DEG_TO_RAD;
+      accel_x *= kGToMps2;
+      accel_y *= kGToMps2;
+      accel_z *= kGToMps2;
       
       // Log data
-      LOG_DEBUG("SENSOR-TASK", "Gyro[°/s] - X: %.2f | Y: %.2f | Z: %.2f", gyro_x, gyro_y, gyro_z);
+      LOG_DEBUG("SENSOR-TASK", "Gyro[rad/s] - X: %.2f | Y: %.2f | Z: %.2f", gyro_x, gyro_y, gyro_z);
       LOG_DEBUG("SENSOR-TASK", "Accel[m/s²] - X: %.2f | Y: %.2f | Z: %.2f", accel_x, accel_y, accel_z);
       
       // Publish to ROS
-      ros_publish_gyro(gyro_x, gyro_y, gyro_z);
-      ros_publish_accel(accel_x, accel_y, accel_z);
+      ros_publish_imu(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
       
       last_publish = now;
       publish_failures = 0;

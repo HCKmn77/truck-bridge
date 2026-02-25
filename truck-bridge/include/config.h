@@ -28,7 +28,6 @@
   #define SERVO_PIN 15
   
   // Status LEDs
-  #define LED_BUILDIN 2     // Built-in LED on ESP32 board
   #define LED_MODE_PIN 18   // Indicates RC/ROS mode
   #define LED_RC_PIN 19     // Indicates RC signal status
   #define LED_ROS_PIN 21    // Indicates ROS connection status
@@ -36,9 +35,7 @@
   // sensors
   #define BMI270_SDA_PIN 2
   #define BMI270_SCL_PIN 4
-  #define GYRO_X_PIN 34  
-  #define GYRO_Y_PIN 35
-  #define GYRO_Z_PIN 36
+
   #define WHEEL_RPM_PIN 39
 #endif
 

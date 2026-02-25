@@ -6,7 +6,7 @@
 #include <rclc/executor.h>
 #include <std_msgs/msg/bool.h>
 #include <std_msgs/msg/int32.h>
-#include <geometry_msgs/msg/vector3.h>
+#include <sensor_msgs/msg/imu.h>
 
 #include "ros_interface.h"
 #include "shared_state.h"
@@ -22,10 +22,8 @@ static rclc_support_t support;
 static rclc_executor_t executor;
 static std_msgs__msg__Bool led_msg;
 static std_msgs__msg__Int32 servo_msg;
-static rcl_publisher_t gyro_pub;
-static geometry_msgs__msg__Vector3 gyro_msg;
-static rcl_publisher_t accel_pub;
-static geometry_msgs__msg__Vector3 accel_msg;
+static rcl_publisher_t imu_pub;
+static sensor_msgs__msg__Imu imu_msg;
 static rcl_publisher_t servo_feedback_pub;
 static std_msgs__msg__Int32 servo_feedback_msg;
 
@@ -62,20 +60,29 @@ void servo_callback(const void * msgin)
   }
 }
 
-// Publish gyro data to ROS topic
-void ros_publish_gyro(float x, float y, float z) {
-  gyro_msg.x = x;
-  gyro_msg.y = y;
-  gyro_msg.z = z;
-  rcl_publish(&gyro_pub, &gyro_msg, NULL);
-}
-
-// Publish accelerometer data to ROS topic
-void ros_publish_accel(float x, float y, float z) {
-  accel_msg.x = x;
-  accel_msg.y = y;
-  accel_msg.z = z;
-  rcl_publish(&accel_pub, &accel_msg, NULL);
+// Publish IMU data to ROS topic
+void ros_publish_imu(float gyro_x, float gyro_y, float gyro_z, float accel_x, float accel_y, float accel_z) {
+  // Set angular velocity (gyroscope)
+  imu_msg.angular_velocity.x = gyro_x;
+  imu_msg.angular_velocity.y = gyro_y;
+  imu_msg.angular_velocity.z = gyro_z;
+  
+  // Set linear acceleration
+  imu_msg.linear_acceleration.x = accel_x;
+  imu_msg.linear_acceleration.y = accel_y;
+  imu_msg.linear_acceleration.z = accel_z;
+  
+  // Set timestamp
+  imu_msg.header.stamp.sec = millis() / 1000;
+  imu_msg.header.stamp.nanosec = (millis() % 1000) * 1000000;
+  
+  // Note: Orientation not computed on ESP32 (will be computed by ROS node)
+  // Set covariance to -1 to indicate unknown covariance
+  imu_msg.orientation_covariance[0] = -1.0;
+  imu_msg.angular_velocity_covariance[0] = -1.0;
+  imu_msg.linear_acceleration_covariance[0] = -1.0;
+  
+  rcl_publish(&imu_pub, &imu_msg, NULL);
 }
 
 // Publish servo angle feedback to ROS topic
@@ -159,31 +166,18 @@ void ros_setup_init(void) {
 
   // Publisher init ----------------------------------------------
   
-  // Gyro publisher setup
+  // IMU publisher setup
   ret = rclc_publisher_init_default(
-    &gyro_pub,
+    &imu_pub,
     &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
-    "imu/gyro"
+    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
+    "imu/data"
   );
   if (ret != RCL_RET_OK) { 
-    LOG_ERROR("ROS-INIT-TASK", "Gyro publisher failed");
+    LOG_ERROR("ROS-INIT-TASK", "IMU publisher failed");
     return; 
   }
-  LOG_INFO("ROS-INIT-TASK", "Gyro publisher ready!");
-  
-  // Accelerometer publisher setup
-  ret = rclc_publisher_init_default(
-    &accel_pub,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
-    "imu/accel"
-  );
-  if (ret != RCL_RET_OK) { 
-    LOG_ERROR("ROS-INIT-TASK", "Accel publisher failed");
-    return; 
-  }
-  LOG_INFO("ROS-INIT-TASK", "Accel publisher ready!");
+  LOG_INFO("ROS-INIT-TASK", "IMU publisher ready!");
 
 
   // Servo state publisher setup

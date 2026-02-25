@@ -44,7 +44,7 @@
 *       - RC Status:  Indicates connection status from RC receiver
 *     Communication:
 *       - Serial1:    micro-ROS communication with ROS2 agent
-*       - Seroal2:    Debug logging
+*       - Serial2:    Debug logging
 *       - WiFi:       optional micro-ROS transport interface
 *
 *
@@ -72,12 +72,10 @@ void setup() {
   LOG_INFO("MAIN-SETUP", "=== System Setup Starting ===");
 
   // --- Hardware Setup ---
-  pinMode(LED_BUILDIN, OUTPUT);
   pinMode(LED_MODE_PIN, OUTPUT);
   pinMode(LED_ROS_PIN, OUTPUT);
   pinMode(LED_RC_PIN, OUTPUT);
 
-  digitalWrite(LED_BUILDIN, LOW);
   digitalWrite(LED_MODE_PIN, LOW);
   digitalWrite(LED_ROS_PIN, LOW);
   digitalWrite(LED_RC_PIN, LOW);

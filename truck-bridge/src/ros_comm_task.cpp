@@ -9,18 +9,21 @@ void ros_comm_task(void *pvParameters) {
   unsigned long last_reconnect = 0;
   
   while (1) {
+
+    // TODO: Implementing a robust reconnection strategy
+
     // Checking connection to mirco-ROS agent
-    if (rmw_uros_ping_agent(100, 1)== RMW_RET_OK) {
+    // if (rmw_uros_ping_agent(100, 1)== RMW_RET_OK) {
       
       set_ros_connected(true);
       
       // Spin executor to process ROS messages
       ros_spin_some(100);
 
-    } else {
+    // } else {
       // connection lost - attempting to reconnect
-      set_ros_connected(false);
-      LOG_WARN("ROS-COMM-TASK", "Failed to ping ROS agent! Trying to reconnect...");
+      // set_ros_connected(false);
+      // LOG_WARN("ROS-COMM-TASK", "Failed to ping ROS agent! Trying to reconnect...");
       
       // TODO: rmw_uros_disconnect function ist not avaiable for micro-ROS
       // WORKAROUND: Manually resetting the Microcontroller to clear the connection state.
@@ -37,7 +40,8 @@ void ros_comm_task(void *pvParameters) {
       // // Reinitialize 
       // ros_setup_transport();
       // ros_setup_init();
-    }
+    // }
+
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }

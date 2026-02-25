@@ -126,8 +126,10 @@ void output_control_task(void *pvParameters) {
       // Write outputs -------------------------------------------------
 
       servo.write(servo_angle);
-      digitalWrite(LED_BUILDIN, led_state ? HIGH : LOW);
-      // analogWrite(MOTOR_PIN, abs(motor_speed));  // uncomment when ready
+            
+      // TODO: Setup motor control 
+      // analogWrite(MOTOR_PIN, abs(motor_speed));
+
       
       // TODO: Optimize servo feedback publishing performance. Feedback is currently slowing down the system significantly
       // Umcomment to publish servo angle feedback to ROS topic /servo_angle/state
