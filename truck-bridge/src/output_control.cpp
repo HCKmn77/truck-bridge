@@ -14,15 +14,12 @@ static bool led_mode_state = false;
 static bool led_rc_state = false;
 static bool led_ros_state = false;
 
-unsigned long last_servo_feedback_published = 0;
 
 
 // Conversion helpers
 static uint8_t pwm_to_servo_angle(uint16_t pwm) {
   pwm = constrain(pwm, 1000, 2000);
-  // return map(pwm, 1000, 2000, 10, 170); // Map to 10-170° to avoid hitting servo limits
-  return map(pwm, 1000, 2000, 170, 10); // Map to 10-170° to avoid hitting servo limits
-  
+  return map(pwm, 1000, 2000, 10, 170); // Map to 10-170° to avoid hitting servo limits  
 }
 
 static int16_t pwm_to_motor_speed(uint16_t pwm) {
@@ -83,7 +80,6 @@ void output_control_task(void *pvParameters) {
   init_leds();
   
   while (1) {
-    unsigned long now = millis();
 
     // Read shared state --------------------------------------------------
     
@@ -124,21 +120,12 @@ void output_control_task(void *pvParameters) {
       }
 
       // Write outputs -------------------------------------------------
-
+      
       servo.write(servo_angle);
             
       // TODO: Setup motor control 
       // analogWrite(MOTOR_PIN, abs(motor_speed));
 
-      
-      // TODO: Optimize servo feedback publishing performance. Feedback is currently slowing down the system significantly
-      // Umcomment to publish servo angle feedback to ROS topic /servo_angle/state
-
-      // Publish servo angle feedback to ROS
-      // if (ros_is_connected() && (now - last_servo_feedback_published >= SERVO_FEEDBACK_PUBLISH_INTERVAL)) {
-      //   ros_publish_servo_feedback(servo_angle);
-      //   last_servo_feedback_published = now;
-      // }
     }
     else{
       LOG_ERROR("OUT-TASK", "ERROR: Failed to acquire state_mutex within 400ms!");

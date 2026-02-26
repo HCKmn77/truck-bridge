@@ -1,14 +1,20 @@
 #include <Arduino.h>
 #include <micro_ros_platformio.h>
+#include <Servo.h>
 #include "ros_interface.h"
 #include "logger.h"
 #include "config.h"
 
+extern Servo servo;
+
 void ros_comm_task(void *pvParameters) {
   LOG_INFO("ROS-COMM-TASK", "Starting ROS-COM-TASK ...");
   unsigned long last_reconnect = 0;
-  
+  unsigned long last_servo_feedback_published = 0;
+
   while (1) {
+
+    unsigned long now = millis();
 
     // TODO: Implementing a robust reconnection strategy
 
@@ -41,6 +47,18 @@ void ros_comm_task(void *pvParameters) {
       // ros_setup_transport();
       // ros_setup_init();
     // }
+
+       
+      // TODO: Optimize servo feedback publishing performance. Feedback is currently slowing down the system significantly
+      // Publish servo angle feedback to ROS topic /servo_angle/state
+ 
+      if (now - last_servo_feedback_published >= SERVO_FEEDBACK_PUBLISH_INTERVAL) {
+        int16_t current_servo_angle = servo.read();
+        ros_publish_servo_feedback(current_servo_angle);
+        last_servo_feedback_published = now;
+        LOG_DEBUG("ROS-COMM-TASK", "Servo feedback published: %d°", current_servo_angle);
+      }
+    
 
     vTaskDelay(pdMS_TO_TICKS(10));
   }

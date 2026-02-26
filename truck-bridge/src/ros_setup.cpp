@@ -8,6 +8,12 @@
 #include <std_msgs/msg/int32.h>
 #include <sensor_msgs/msg/imu.h>
 
+// ESP32 specific includes for WiFi/BT control
+#ifdef TARGET_ESP32
+  #include <WiFi.h>
+  #include "esp_bt.h"
+#endif
+
 #include "ros_interface.h"
 #include "shared_state.h"
 #include "logger.h"
@@ -110,6 +116,14 @@ void ros_setup_transport(void) {
   // Setup transport based on build-flag defined in platformio.ini
   #if defined(USE_SERIAL_TRANSPORT)
     LOG_INFO("ROS-INIT-TASK", "Using Serial transport");
+    
+    // Disable WiFi and Bluetooth to save power (not needed for serial)
+    #ifdef TARGET_ESP32
+      WiFi.mode(WIFI_OFF);
+      btStop();
+      LOG_INFO("ROS-INIT-TASK", "WiFi and Bluetooth disabled");
+    #endif
+    
     Serial.begin(115200);
     set_microros_serial_transports(Serial);
 

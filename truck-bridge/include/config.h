@@ -3,11 +3,15 @@
 
 /**
  * Project-wide configuration settings
- * 
+ * This file defines hardware pin assignments, timing intervals, 
+ * and other constants used across the project.
  */
 
 
 // ======== Hardware specific config ========
+// Check official NodeMCU   ESP32 pinout for reference: 
+// https://joy-it.net/files/files/Produkte/SBC-NodeMCU-ESP32-C/SBC-NodeMCU-ESP32-C_Manual-EN_2025-01-17.pdf
+
 #if defined(TARGET_ESP32)
 
 // Logging configuration

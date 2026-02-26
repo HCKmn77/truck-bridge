@@ -2,7 +2,7 @@
 """
 Servo Angle to Joint State Converter
 
-Subscribes to /servo_angle/cmd (Int32) and publishes joint states
+Subscribes to /servo_angle/state (Int32) and publishes joint states
 for the truck's front axle steering joint.
 """
 
@@ -17,10 +17,10 @@ class ServoToJointState(Node):
     def __init__(self):
         super().__init__('servo_to_joint_state')
         
-        # Subscriber for servo angle command
+        # Subscriber for servo angle state (actual feedback from servo)
         self.subscription = self.create_subscription(
             Int32,
-            '/servo_angle/cmd',
+            '/servo_angle/state',
             self.servo_callback,
             10
         )
@@ -52,16 +52,17 @@ class ServoToJointState(Node):
         self.publish_rate_hz = 10.0
         self.timer = self.create_timer(1.0 / self.publish_rate_hz, self.publish_joint_state)
         
-        self.get_logger().info('Servo to Joint State converter started')
+        self.get_logger().info('Servo to Joint State converter started (listening to /servo_angle/state)')
     
     def servo_callback(self, msg):
-        """Convert servo angle to joint state and publish"""
+        """Convert servo angle state (actual) to joint state and publish"""
         servo_angle = msg.data
         
         # Convert servo angle (10-170°) to joint angle (-0.524 to +0.524 rad)
         # Center at 90°, map to 0 rad
+        # Inverted: smaller angle = left (negative), larger angle = right (positive)
         servo_normalized = (servo_angle - self.servo_center) / (self.servo_max - self.servo_center)
-        self.last_joint_angle = servo_normalized * self.joint_max
+        self.last_joint_angle = -servo_normalized * self.joint_max  # Inverted for correct steering direction
 
         # Publish immediately on new command
         self.publish_joint_state()

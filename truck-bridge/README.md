@@ -73,12 +73,16 @@ ros2 launch utils/rviz_visualization/truck_viz.launch.py
 
 #### Option 2: Topics
 
-- Control servo: `/servo_angle/cmd` (std_msgs/Int32, 0-180)
-- 
-Example:
+Control servo: `/servo_angle/cmd` (std_msgs/Int32, 0-180)
 
 ```bash
 ros2 topic pub /servo_angle/cmd std_msgs/msg/Int32 "{data: 120}"
+```
+
+Monitor actual servo position:
+
+```bash
+ros2 topic echo /servo_angle/state
 ```
 
 #### Option 3: Keyboard controller
@@ -102,7 +106,8 @@ This will automatically start:
 - micro-ROS agent (serial connection) *NOTE: Make sure to reset the ESP32 after launch*
 - Keyboard controller
 - Topic list monitor
-- Echo of `/servo_angle/cmd` topic
+- Echo of `/servo_angle/cmd` topic (commands sent to servo)
+- Echo of `/servo_angle/state` topic (actual servo position feedback)
 - Echo of `/imu/data` topic
 - RViz visualization
 

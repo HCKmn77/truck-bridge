@@ -4,10 +4,11 @@ Truck Control Launch File
 
 Launches all necessary components for the truck bridge system:
 - micro-ROS agent via serial
+- ESP32 debug logs terminal
 - Terminal displaying all current ROS topics
-- Terminal displaying /servo_angle/cmd topic
+- Terminal displaying /servo_angle/state topic (actual servo position)
 - Terminal displaying /imu/data topic
-- keyboard servo controller
+- Keyboard servo controller
 - RViz visualization
 
 Usage:
@@ -57,7 +58,23 @@ def generate_launch_description():
         name='micro_ros_agent_terminal'
     )
     
-    # 2. Terminal displaying all current ROS topics (updates periodically)
+    # 2. Terminal displaying debug logs from ESP32 (via /dev/ttyTHS1)
+    debug_logs = ExecuteProcess(
+        cmd=[
+            'gnome-terminal',
+            '--',
+            'bash', '-c',
+            'echo "Waiting for micro-ROS agent confirmation..."; '
+            'while [ ! -f /tmp/truck_bridge_ready ]; do sleep 1; done; '
+            'echo "Displaying ESP32 debug logs from /dev/ttyTHS1"; '
+            'echo ""; '
+            'sudo screen /dev/ttyTHS1 115200'
+        ],
+        output='screen',
+        name='debug_logs_terminal'
+    )
+    
+    # 3. Terminal displaying all current ROS topics (updates periodically)
     topics_list = ExecuteProcess(
         cmd=[
             'gnome-terminal',
@@ -70,7 +87,7 @@ def generate_launch_description():
         name='topics_list_terminal'
     )
     
-    # 3. Terminal displaying /servo_angle/cmd topic
+    # 4. Terminal displaying /servo_angle/state topic (actual servo position feedback)
     servo_angle_echo = ExecuteProcess(
         cmd=[
             'gnome-terminal',
@@ -78,15 +95,15 @@ def generate_launch_description():
             'bash', '-c',
             'echo "Waiting for micro-ROS agent confirmation..."; '
             'while [ ! -f /tmp/truck_bridge_ready ]; do sleep 1; done; '
-            'echo "Monitoring /servo_angle/cmd topic"; '
+            'echo "Monitoring /servo_angle/state topic (actual servo position)"; '
             'echo ""; '
-            'ros2 topic echo /servo_angle/cmd'
+            'ros2 topic echo /servo_angle/state'
         ],
         output='screen',
         name='servo_angle_terminal'
     )
     
-    # 4. Terminal displaying /imu/data topic
+    # 5. Terminal displaying /imu/data topic
     imu_data_echo = ExecuteProcess(
         cmd=[
             'gnome-terminal',
@@ -102,7 +119,7 @@ def generate_launch_description():
         name='imu_data_terminal'
     )
     
-    # 5. Start RViz after micro-ROS confirmation
+    # 6. Start RViz after micro-ROS confirmation
     rviz_launch = ExecuteProcess(
         cmd=[
             'gnome-terminal',
@@ -116,7 +133,7 @@ def generate_launch_description():
         name='rviz_terminal'
     )
     
-    # 6. Start keyboard controller in a terminal
+    # 7. Start keyboard controller in a terminal
     keyboard_controller = ExecuteProcess(
         cmd=[
             'gnome-terminal',
@@ -131,7 +148,7 @@ def generate_launch_description():
         name='keyboard_controller_terminal'
     )
     
-    # 7. Blocking process to keep launch alive and cleanable with Ctrl+C
+    # 8. Blocking process to keep launch alive and cleanable with Ctrl+C
     keep_alive = ExecuteProcess(
         cmd=['bash', '-c', 'echo "Truck Control System Running - Press Ctrl+C to stop"; sleep infinity'],
         output='screen',
@@ -140,6 +157,7 @@ def generate_launch_description():
     
     return LaunchDescription([
         micro_ros_agent,
+        debug_logs,
         topics_list,
         servo_angle_echo,
         imu_data_echo,

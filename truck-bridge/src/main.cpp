@@ -1,19 +1,6 @@
-// External includes
-#include <Arduino.h>
-#include <micro_ros_platformio.h>
-#include <Servo.h>
-
-// Project includes
-#include "config.h"
-#include "logger.h"
-#include "output_control.h"
-#include "shared_state.h"
-#include "rc_input.h"
-#include "ros_interface.h"
-#include "sensor.h"
 
 /********************************************************************************************************************
-*   Studieprojekt: Truck Bridge | Hochschule Esslingen (2025)
+ *   Studieprojekt: Truck Bridge | Hochschule Esslingen (2025)
 *   Autor: Jeremia Haackmann (TIB)
 * ------------------------------------------------------------------------------------------------------------------
 *   Project description:
@@ -32,16 +19,16 @@
 *       - rpm_sensor: Wheel speed measurement
 *     PWN Inputs from RC reciever:
 *       - CH1:        Steering
-*       - CH2:        Throttle
+*       - CH2:        -
 *       - CH3:        -
 *       - CH4:        -
 *       - CH5:        -
 *       - CH6:        Mode switch (Manual/Auto)
 *       - CH_BATT:   Battery voltage monitoring (not implemented)
 *     LED indicator:
-*       - MODE:       Indicates manual (RC) or automatic (ROS) mode
-*       - ROS Status: Indicates connection status to ROS agent
+*       - MODE:       Indicates manual (OFF) or automatic (ON) mode
 *       - RC Status:  Indicates connection status from RC receiver
+*       - ROS Status: Indicates connection status to ROS agent
 *     Communication:
 *       - Serial1:    micro-ROS communication with ROS2 agent
 *       - Serial2:    Debug logging
@@ -56,6 +43,20 @@
 *     and distributes the tasks across the ESP32's two cores.
 *   
 ********************************************************************************************************************/
+
+// External includes
+#include <Arduino.h>
+#include <micro_ros_platformio.h>
+#include <Servo.h>
+
+// Project includes
+#include "config.h"
+#include "logger.h"
+#include "output_control.h"
+#include "shared_state.h"
+#include "rc_input.h"
+#include "ros_interface.h"
+#include "sensor.h"
 
 Servo servo;
 
